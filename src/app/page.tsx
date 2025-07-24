@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, Palette, PenLine, Sparkles, SpellCheck, ThumbsUp, Lightbulb, Download } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Loader2, Palette, PenLine, Sparkles, SpellCheck, ThumbsUp, Lightbulb, Download, Timer as TimerIcon, Play, Pause, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -10,12 +10,73 @@ import { getAnalysis } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import type { AnalyzeWritingOutput } from "@/ai/flows/analyze-writing";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 
 export default function Home() {
   const [text, setText] = useState("");
   const [analysis, setAnalysis] = useState<AnalyzeWritingOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [timerOn, setTimerOn] = useState(false);
+  const [initialMinutes, setInitialMinutes] = useState("00");
+  const [initialSeconds, setInitialSeconds] = useState("00");
+
+  useEffect(() => {
+    if (!timerOn) return;
+
+    if (timeLeft <= 0) {
+      setTimerOn(false);
+      toast({
+        title: "Time's up!",
+        description: "Your writing session has ended.",
+      });
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setTimeLeft(prev => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timerOn, timeLeft, toast]);
+
+  const startTimer = () => {
+    if (timeLeft > 0) {
+      setTimerOn(true);
+    }
+  };
+
+  const pauseTimer = () => {
+    setTimerOn(false);
+  };
+  
+  const resetTimer = () => {
+    setTimerOn(false);
+    const minutes = parseInt(initialMinutes, 10) || 0;
+    const seconds = parseInt(initialSeconds, 10) || 0;
+    setTimeLeft(minutes * 60 + seconds);
+  };
+  
+  const handleTimeChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    if (numericValue.length <= 2) {
+      setter(numericValue);
+    }
+  };
+
+  useEffect(() => {
+    resetTimer();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMinutes, initialSeconds]);
+
+  const formatTime = (totalSeconds: number) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
 
   const handleAnalyze = async () => {
     if (!text.trim()) {
@@ -106,10 +167,55 @@ export default function Home() {
         </Card>
         
         <div className="space-y-4">
+        <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center gap-3">
+              <TimerIcon className="w-6 h-6 text-primary" />
+              <CardTitle className="font-headline text-2xl">Timer</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center gap-4">
+              <div className="flex items-center justify-center text-6xl font-bold font-mono text-primary tracking-widest">
+                {timerOn ? (
+                   formatTime(timeLeft)
+                ) : (
+                  <div className="flex items-center gap-2">
+                     <Input 
+                      type="text"
+                      value={initialMinutes}
+                      onChange={(e) => handleTimeChange(setInitialMinutes, e.target.value)}
+                      className="w-24 h-20 text-6xl text-center bg-transparent border-0 focus-visible:ring-0"
+                      maxLength={2}
+                      />
+                      <span>:</span>
+                     <Input
+                      type="text"
+                      value={initialSeconds}
+                      onChange={(e) => handleTimeChange(setInitialSeconds, e.target.value)}
+                      className="w-24 h-20 text-6xl text-center bg-transparent border-0 focus-visible:ring-0"
+                      maxLength={2}
+                      />
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-4">
+                {!timerOn ? (
+                  <Button onClick={startTimer} size="lg" disabled={timeLeft === 0}>
+                    <Play className="mr-2" /> Start
+                  </Button>
+                ) : (
+                  <Button onClick={pauseTimer} size="lg">
+                    <Pause className="mr-2" /> Pause
+                  </Button>
+                )}
+                <Button onClick={resetTimer} variant="outline" size="lg">
+                  <RotateCcw className="mr-2" /> Reset
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
           {isLoading && (
             <>
               <Progress value={undefined} className="w-full h-2 animate-pulse" />
-              {[...Array(5)].map((_, i) => (
+              {[...Array(4)].map((_, i) => (
                 <Card key={i} className="shadow-lg">
                   <CardHeader>
                     <Skeleton className="h-6 w-1/3" />
@@ -149,7 +255,7 @@ export default function Home() {
           )}
           
           {!isLoading && !analysis && (
-            <div className="flex items-center justify-center h-[450px] bg-card rounded-lg border-2 border-dashed shadow-sm">
+            <div className="flex items-center justify-center h-[300px] bg-card rounded-lg border-2 border-dashed shadow-sm">
                 <div className="text-center text-muted-foreground p-8">
                     <Sparkles className="mx-auto h-12 w-12 mb-4" />
                     <h3 className="text-xl font-semibold font-headline">Awaiting Your Masterpiece</h3>
