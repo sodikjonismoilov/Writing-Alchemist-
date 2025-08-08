@@ -18,10 +18,9 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [duration, setDuration] = useState(15 * 60);
+  const [timeLeft, setTimeLeft] = useState(duration);
   const [timerOn, setTimerOn] = useState(false);
-  const [initialMinutes, setInitialMinutes] = useState("00");
-  const [initialSeconds, setInitialSeconds] = useState("00");
 
   useEffect(() => {
     if (!timerOn) return;
@@ -42,6 +41,13 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [timerOn, timeLeft, toast]);
 
+  const handleSetDuration = (minutes: number) => {
+    if (timerOn) return;
+    const newDuration = minutes * 60;
+    setDuration(newDuration);
+    setTimeLeft(newDuration);
+  };
+
   const startTimer = () => {
     if (timeLeft > 0) {
       setTimerOn(true);
@@ -54,22 +60,8 @@ export default function Home() {
   
   const resetTimer = () => {
     setTimerOn(false);
-    const minutes = parseInt(initialMinutes, 10) || 0;
-    const seconds = parseInt(initialSeconds, 10) || 0;
-    setTimeLeft(minutes * 60 + seconds);
+    setTimeLeft(duration);
   };
-  
-  const handleTimeChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
-    const numericValue = value.replace(/[^0-9]/g, '');
-    if (numericValue.length <= 2) {
-      setter(numericValue);
-    }
-  };
-
-  useEffect(() => {
-    resetTimer();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialMinutes, initialSeconds]);
 
   const formatTime = (totalSeconds: number) => {
     const minutes = Math.floor(totalSeconds / 60);
@@ -77,6 +69,9 @@ export default function Home() {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
+  const progress = (timeLeft / duration) * 100;
+  const circumference = 2 * Math.PI * 52;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
 
   const handleAnalyze = async () => {
     if (!text.trim()) {
@@ -167,50 +162,70 @@ export default function Home() {
         </Card>
         
         <div className="space-y-4">
-        <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center gap-3">
-              <TimerIcon className="w-6 h-6 text-primary" />
-              <CardTitle className="font-headline text-2xl">Timer</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center gap-4">
-              <div className="flex items-center justify-center text-6xl font-bold font-mono text-primary tracking-widest">
-                {timerOn ? (
-                   formatTime(timeLeft)
-                ) : (
-                  <div className="flex items-center gap-2">
-                     <Input 
-                      type="text"
-                      value={initialMinutes}
-                      onChange={(e) => handleTimeChange(setInitialMinutes, e.target.value)}
-                      className="w-24 h-20 text-6xl text-center bg-transparent border-0 focus-visible:ring-0"
-                      maxLength={2}
-                      />
-                      <span>:</span>
-                     <Input
-                      type="text"
-                      value={initialSeconds}
-                      onChange={(e) => handleTimeChange(setInitialSeconds, e.target.value)}
-                      className="w-24 h-20 text-6xl text-center bg-transparent border-0 focus-visible:ring-0"
-                      maxLength={2}
-                      />
+          <Card className="shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-3">
+                      <TimerIcon className="w-6 h-6 text-primary" />
+                      <CardTitle className="font-headline text-2xl">Focus Timer</CardTitle>
                   </div>
-                )}
-              </div>
-              <div className="flex gap-4">
-                {!timerOn ? (
-                  <Button onClick={startTimer} size="lg" disabled={timeLeft === 0}>
-                    <Play className="mr-2" /> Start
-                  </Button>
-                ) : (
-                  <Button onClick={pauseTimer} size="lg">
-                    <Pause className="mr-2" /> Pause
-                  </Button>
-                )}
-                <Button onClick={resetTimer} variant="outline" size="lg">
-                  <RotateCcw className="mr-2" /> Reset
-                </Button>
-              </div>
-            </CardContent>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center gap-6">
+                  <div className="relative h-32 w-32">
+                      <svg className="absolute inset-0" viewBox="0 0 120 120">
+                          <circle
+                              className="text-border"
+                              stroke="currentColor"
+                              strokeWidth="8"
+                              fill="transparent"
+                              r="52"
+                              cx="60"
+                              cy="60"
+                          />
+                          <circle
+                              className="text-primary transition-all duration-1000 ease-linear"
+                              stroke="currentColor"
+                              strokeWidth="8"
+                              strokeLinecap="round"
+                              fill="transparent"
+                              r="52"
+                              cx="60"
+                              cy="60"
+                              strokeDasharray={circumference}
+                              strokeDashoffset={strokeDashoffset}
+                              transform="rotate(-90 60 60)"
+                          />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center text-3xl font-bold font-mono text-primary tracking-widest">
+                          {formatTime(timeLeft)}
+                      </div>
+                  </div>
+
+                  {!timerOn && (
+                    <div className="flex gap-2">
+                        {[5, 15, 30, 60].map(min => (
+                            <Button key={min} variant={duration === min * 60 ? "default" : "outline"} size="sm" onClick={() => handleSetDuration(min)}>
+                                {min}m
+                            </Button>
+                        ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-4 items-center">
+                      <Button onClick={resetTimer} variant="outline" size="icon" className="rounded-full h-12 w-12">
+                          <RotateCcw className="h-5 w-5" />
+                      </Button>
+                      {!timerOn ? (
+                          <Button onClick={startTimer} size="lg" className="rounded-full h-20 w-20 text-lg" disabled={timeLeft === 0}>
+                              <Play className="h-6 w-6" />
+                          </Button>
+                      ) : (
+                          <Button onClick={pauseTimer} size="lg" className="rounded-full h-20 w-20 text-lg">
+                              <Pause className="h-6 w-6" />
+                          </Button>
+                      )}
+                       <div className="w-12" />
+                  </div>
+              </CardContent>
           </Card>
           {isLoading && (
             <>
