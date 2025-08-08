@@ -18,6 +18,16 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  devIndicators: {
+    buildActivity: false,
+  },
+  // The following is a workaround for a known issue with Next.js and Turbopack.
+  // This can be removed once the issue is resolved.
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['*.google.com', '*.firebase.app', '*.cloud.run', '*.cloud.shell'],
+    },
+  },
 };
 
 export default nextConfig;
